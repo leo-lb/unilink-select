@@ -20,17 +20,21 @@ net_cb_fn_test(int event, void* event_data, void** p)
 
   switch (event) {
     case NET_EVENT_ESTABLISHED:
-      printf("NET_EVENT_ESTABLISHED");
+      printf("NET_EVENT_ESTABLISHED - fd: %d",
+             ((struct net_event_data_established*)event_data)->tcp_conn->fd);
       break;
     case NET_EVENT_CLOSED:
-      printf("NET_EVENT_CLOSED");
+      printf("NET_EVENT_CLOSED - fd: %d",
+             ((struct net_event_data_closed*)event_data)->tcp_conn->fd);
       break;
     case NET_EVENT_SENT:
-      printf("NET_EVENT_SENT - count: %ld",
+      printf("NET_EVENT_SENT - fd: %d count: %ld",
+             ((struct net_event_data_sent*)event_data)->tcp_conn->fd,
              ((struct net_event_data_sent*)event_data)->count);
       break;
     case NET_EVENT_RECEIVED:
-      printf("NET_EVENT_RECEIVED - count: %ld",
+      printf("NET_EVENT_RECEIVED - fd: %d count: %ld",
+             ((struct net_event_data_received*)event_data)->tcp_conn->fd,
              ((struct net_event_data_received*)event_data)->count);
       break;
   }

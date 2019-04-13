@@ -5,6 +5,8 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
+#define RECV_SIZE 1024
+
 #define E(x) (-(x))
 
 typedef int
@@ -26,9 +28,47 @@ struct mem_buf
   size_t size;
 };
 
+void
+mem_free_buf(struct mem_buf* m);
+
+enum
+{
+  MEM_GROW_BUF_OK,
+  MEM_GROW_BUF_ALLOC,
+  MEM_GROW_BUF_OVERFLOW,
+} mem_grow_buf_errors;
+
+int
+mem_grow_buf(struct mem_buf* m, void* p, size_t size);
+
+enum
+{
+  MEM_SHRINK_BUF_HEAD_OK,
+  MEM_SHRINK_BUF_HEAD_IS_SMALLER,
+  MEM_SHRINK_BUF_HEAD_UNDERFLOW,
+  MEM_SHRINK_BUF_HEAD_ALLOC
+} mem_shrink_buf_head_errors;
+
+int
+mem_shrink_buf_head(struct mem_buf* m, size_t size);
+
+enum
+{
+  MEM_SHRINK_BUF_OK,
+  MEM_SHRINK_BUF_IS_SMALLER,
+  MEM_SHRINK_BUF_UNDERFLOW,
+  MEM_SHRINK_BUF_ALLOC,
+} mem_shrink_buf_errors;
+
+int
+mem_shrink_buf(struct mem_buf* m, size_t size);
+
+#define NET_TCP_CONN_CONNECTED 0x1
+
 struct net_tcp_conn
 {
   LIST_ENTRY(net_tcp_conn) entry;
+  int flags;
   int fd;
   struct sockaddr_storage sa;
   socklen_t sa_len;
@@ -68,9 +108,7 @@ struct net_context
 
   int nfds;
 
-  /*
-    A list that contains every active TCP connections.
-  */
+  /* A list that contains every active TCP connections. */
   struct net_tcp_conns tcp_conns;
 
   /* A list that contains every registered event callback */
@@ -105,7 +143,9 @@ struct net_event_data_established
 };
 
 #define NET_EVENT_CLOSED_INTERNAL 0x1
-#define NET_EVENT_CLOSED_NETWORK 0x2
+#define NET_EVENT_CLOSED_SEND 0x2
+#define NET_EVENT_CLOSED_RECV 0x4
+#define NET_EVENT_CLOSED_CONNECT 0x8
 
 struct net_event_data_closed
 {

@@ -121,8 +121,8 @@ net_fd_int_array_set(fd_set* set, int* nfds, int* array, size_t size);
 enum
 {
   NET_SET_NONBLOCK_OK,
-  NET_SET_NONBLOCK_FCNTL_F_GETFD,
-  NET_SET_NONBLOCK_FCNTL_F_SETFD,
+  NET_SET_NONBLOCK_FCNTL_F_GETFL,
+  NET_SET_NONBLOCK_FCNTL_F_SETFL,
 } net_set_nonblock_errors;
 
 int

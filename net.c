@@ -183,7 +183,7 @@ net_loop(struct net_context* ctx)
               if (recv_ret != -1 && recv_ret != 0) {
                 int shrink_ret = mem_shrink_buf(&tcp_conn_entry->receive_buf,
                                                 RECV_SIZE - (size_t)recv_ret);
-                if (shrink_ret != MEM_SHRINK_BUF_HEAD_OK) {
+                if (shrink_ret != MEM_SHRINK_BUF_OK) {
 
                   /* the buffer is potentially corrupted, close the connection
                    */

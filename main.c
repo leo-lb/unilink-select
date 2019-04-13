@@ -145,6 +145,8 @@ main(int argc, char* argv[])
     }
 
     net_loop(&ctx);
+
+    free(net_cb);
   }
 
   return EXIT_SUCCESS;

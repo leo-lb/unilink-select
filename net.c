@@ -151,6 +151,7 @@ net_loop(struct net_context* ctx)
         }
       }
 
+      struct net_tcp_conn temp_entry;
       struct net_tcp_conn* tcp_conn_entry;
       LIST_FOREACH(tcp_conn_entry, &ctx->tcp_conns, entry)
       {
@@ -161,6 +162,7 @@ net_loop(struct net_context* ctx)
             do {
               struct net_event_data_closed event_data;
 
+              /* grow the buffer to allow received data to be appended */
               int grow_ret =
                 mem_grow_buf(&tcp_conn_entry->receive_buf, NULL, RECV_SIZE);
 
@@ -173,6 +175,7 @@ net_loop(struct net_context* ctx)
                 goto close_fd_recv;
               }
 
+              /* receive in the grown region */
               ssize_t recv_ret =
                 recv(fd,
                      tcp_conn_entry->receive_buf.p +
@@ -180,7 +183,9 @@ net_loop(struct net_context* ctx)
                      RECV_SIZE,
                      0);
 
-              if (recv_ret != -1 && recv_ret != 0) {
+              if (recv_ret != -1 && recv_ret != 0) { /* success and not EOF */
+
+                /* shrink the buffer to what was actually received */
                 int shrink_ret = mem_shrink_buf(&tcp_conn_entry->receive_buf,
                                                 RECV_SIZE - (size_t)recv_ret);
                 if (shrink_ret != MEM_SHRINK_BUF_OK) {
@@ -208,13 +213,31 @@ net_loop(struct net_context* ctx)
                   }
                 }
               } else if (recv_ret == 0) {
-                /* socket was shutdown, close it */
+                /* socket was shutdown (EOF), close it */
                 event_data.flags = NET_EVENT_CLOSED_RECV;
+
+                /* the buffer will be freed entirely so no need to shrink it */
                 goto close_fd_recv;
-              } else {
+              } else { /* error */
 
                 /* recv(2) until it returns that it would block */
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
+
+                  /*
+                    we grew the buffer but received nothing so we should just
+                    shrink it of what we've just grown it.
+                  */
+                  int shrink_ret =
+                    mem_shrink_buf(&tcp_conn_entry->receive_buf, RECV_SIZE);
+                  if (shrink_ret != MEM_SHRINK_BUF_OK) {
+
+                    /* the buffer is potentially corrupted, close the connection
+                     */
+                    event_data.flags =
+                      NET_EVENT_CLOSED_INTERNAL | NET_EVENT_CLOSED_RECV;
+                    goto close_fd_recv;
+                  }
+
                   break;
                 }
 
@@ -231,6 +254,7 @@ net_loop(struct net_context* ctx)
               FD_CLR(fd, &ctx->readfds);
               FD_CLR(fd, &ctx->writefds);
 
+              shutdown(fd, SHUT_RDWR);
               close(fd);
 
               struct net_callback* callback_entry;
@@ -256,12 +280,17 @@ net_loop(struct net_context* ctx)
                    0) /* send(2) until buffer is empty */ {
               struct net_event_data_closed event_data;
 
+              /* try to send our whole buffer */
               ssize_t send_ret = send(fd,
                                       tcp_conn_entry->send_buf.p,
                                       tcp_conn_entry->send_buf.size,
                                       0);
 
-              if (send_ret != -1) {
+              if (send_ret != -1) { /* success */
+                /*
+                  shrink of the number of bytes sent from the start of the
+                  buffer
+                */
                 int shrink_ret = mem_shrink_buf_head(&tcp_conn_entry->send_buf,
                                                      (size_t)send_ret);
                 if (shrink_ret != MEM_SHRINK_BUF_HEAD_OK) {
@@ -288,7 +317,7 @@ net_loop(struct net_context* ctx)
                   }
                 }
 
-              } else {
+              } else { /* error */
 
                 /* send(2) until it returns that it would block */
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -308,6 +337,7 @@ net_loop(struct net_context* ctx)
               FD_CLR(fd, &ctx->readfds);
               FD_CLR(fd, &ctx->writefds);
 
+              shutdown(fd, SHUT_RDWR);
               close(fd);
 
               struct net_callback* callback_entry;
@@ -339,7 +369,7 @@ net_loop(struct net_context* ctx)
             int getsockopt_ret =
               getsockopt(fd, SOL_SOCKET, SO_ERROR, &connect_ret, &optlen);
             if (getsockopt_ret != -1) {
-              if (connect_ret == 0) {
+              if (connect_ret == 0) { /* connect(2) succeeded */
                 tcp_conn_entry->flags |= NET_TCP_CONN_CONNECTED;
 
                 struct net_callback* callback_entry;
@@ -361,6 +391,7 @@ net_loop(struct net_context* ctx)
                 FD_CLR(fd, &ctx->readfds);
                 FD_CLR(fd, &ctx->writefds);
 
+                shutdown(fd, SHUT_RDWR);
                 close(fd);
 
                 struct net_callback* callback_entry;
@@ -380,6 +411,10 @@ net_loop(struct net_context* ctx)
                 goto remove_list_entry;
               }
             }
+            /*
+              if getsockopt fails then we will try again next time
+              we should probably close the connection (?)
+            */
           }
         }
 
@@ -395,7 +430,6 @@ net_loop(struct net_context* ctx)
             the one of the element we are removing so that
             LIST_FOREACH does not crash.
         */
-        struct net_tcp_conn temp_entry;
         LIST_NEXT(&temp_entry, entry) = LIST_NEXT(tcp_conn_entry, entry);
 
         mem_free_buf(&tcp_conn_entry->receive_buf);

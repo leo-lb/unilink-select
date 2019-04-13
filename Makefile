@@ -1,5 +1,4 @@
 CFLAGS += -Wall -Werror -Wextra
-LDFLAGS += 
 
 NAME = unilink-select
 
@@ -7,7 +6,7 @@ SRCS = main.c mem.c net.c
 OBJS = ${SRCS:.c=.o}
 
 $(NAME): $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(NAME)
+	$(LINK.c) $(OBJS) -o $(NAME)
 
 all: $(NAME)
 

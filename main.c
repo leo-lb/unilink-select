@@ -34,9 +34,27 @@ net_cb_fn_test(int event, void* event_data, void** p)
              ((struct net_event_data_sent*)event_data)->count);
       break;
     case NET_EVENT_RECEIVED:
-      printf("NET_EVENT_RECEIVED - fd: %d count: %ld",
+      printf("NET_EVENT_RECEIVED - fd: %d count: %ld size: %ld size_int: %d "
+             "data: \"%.*s\"",
              ((struct net_event_data_received*)event_data)->tcp_conn->fd,
-             ((struct net_event_data_received*)event_data)->count);
+             ((struct net_event_data_received*)event_data)->count,
+             ((struct net_event_data_received*)event_data)
+               ->tcp_conn->receive_buf.size,
+             (int)((struct net_event_data_received*)event_data)
+               ->tcp_conn->receive_buf.size,
+             (int)((struct net_event_data_received*)event_data)
+               ->tcp_conn->receive_buf.size,
+             (const char*)((struct net_event_data_received*)event_data)
+               ->tcp_conn->receive_buf.p);
+
+      mem_free_buf(
+        &((struct net_event_data_received*)event_data)->tcp_conn->receive_buf);
+
+      char* to_send = "Hello\n";
+      mem_grow_buf(
+        &((struct net_event_data_received*)event_data)->tcp_conn->send_buf,
+        to_send,
+        strlen(to_send));
       break;
   }
 

@@ -1,2 +1,3 @@
 .vscode/**
-unilink
+*.o
+unilink-select

@@ -1,10 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* DEBUG */
-#include <stdio.h>
-/* */
-
 #include "unilink.h"
 
 void
@@ -69,9 +65,6 @@ mem_shrink_buf_head(struct mem_buf* m, size_t size)
 int
 mem_shrink_buf(struct mem_buf* m, size_t size)
 {
-  printf(
-    "\n\n%s(%p (p: %p, size: %ld), %ld)\n\n", __func__, m, m->p, m->size, size);
-
   if (size > m->size) {
     return E(MEM_SHRINK_BUF_IS_SMALLER);
   }

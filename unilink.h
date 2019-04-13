@@ -1,9 +1,10 @@
 #ifndef UNILINK_H
 #define UNILINK_H
 
-#include <sys/queue.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+
+#include "queue.h"
 
 #define RECV_SIZE 1024
 

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "queue.h"
 #include "unilink.h"
 
 int

@@ -1,4 +1,3 @@
-#include <sys/queue.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -8,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "queue.h"
 #include "unilink.h"
 
 void

@@ -1,22 +1,22 @@
 
-Brainstorming
+# Brainstorming
 
-Design goals
-• Single-threaded
-• Little statically linked binary size (<100kb)
-• Portable
-• Minimalist
-• Open a single connection per peer, bidirectional messaging, pipelining, multiplexing
+## Design goals
+- Single-threaded
+- Little statically linked binary size (<100kb)
+- Portable
+- Minimalist
+- Open a single connection per peer, bidirectional messaging, pipelining, multiplexing
 
-How do we make it Single-threaded?
+### How do we make it Single-threaded?
 
 We use select(2) because it is the most simple and portable way of doing asynchronous network I/O.
 
-How do we make it <100kb?
+### How do we make it <100kb?
 
 We do not use any libraries and only libc function that can be replaced with a very small wrapper to the kernel system call or a relatively small function.
 
-How do we have a single connection per peer at a time?
+### How do we have a single connection per peer at a time?
 
 We could implement a multiplexing protocol to allow multiple "sub" connections like Yamux but that's rather more complex solution than below.
 

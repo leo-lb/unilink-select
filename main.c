@@ -11,6 +11,7 @@
 #include "queue.h"
 #include "unilink.h"
 
+#ifdef DEBUG
 int
 net_cb_fn_test(int event, void* event_data, void** p)
 {
@@ -61,6 +62,7 @@ net_cb_fn_test(int event, void* event_data, void** p)
   printf("\n");
   return 0;
 }
+#endif
 
 int
 main(int argc, char* argv[])
@@ -70,7 +72,9 @@ main(int argc, char* argv[])
 
     int socket_ret = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_ret == -1) {
+#ifdef DEBUG
       perror("socket");
+#endif
       return EXIT_FAILURE;
     }
 
@@ -87,14 +91,18 @@ main(int argc, char* argv[])
 
     int bind_ret = bind(tcp_fd, (struct sockaddr*)&sa, salen);
     if (bind_ret == -1) {
+#ifdef DEBUG
       perror("bind");
+#endif
       close(tcp_fd);
       return EXIT_FAILURE;
     }
 
     int listen_ret = listen(tcp_fd, 256);
     if (listen_ret == -1) {
+#ifdef DEBUG
       perror("listen");
+#endif
       close(tcp_fd);
       return EXIT_FAILURE;
     }
@@ -119,13 +127,18 @@ main(int argc, char* argv[])
 
     int getsockname_ret = getsockname(tcp_fd, (struct sockaddr*)&sa2, &sa2len);
     if (getsockname_ret == -1) {
+#ifdef DEBUG
       perror("getsockname");
+#endif
       close(tcp_fd);
       return EXIT_FAILURE;
     }
 
+#ifdef DEBUG
     printf("listening on port %hu\n", ntohs(sa2.sin_port));
+#endif
 
+#ifdef DEBUG
     struct net_callback* net_cb = calloc(1, sizeof *net_cb);
     if (net_cb == NULL) {
       perror("calloc");
@@ -137,6 +150,7 @@ main(int argc, char* argv[])
     net_cb->cb = net_cb_fn_test;
 
     LIST_INSERT_HEAD(&ctx.callbacks, net_cb, entry);
+#endif
 
     int nonblock_ret = net_set_nonblock(tcp_fd);
     if (nonblock_ret != NET_SET_NONBLOCK_OK) {
@@ -146,7 +160,9 @@ main(int argc, char* argv[])
 
     net_loop(&ctx);
 
+#ifdef DEBUG
     free(net_cb);
+#endif
   }
 
   return EXIT_SUCCESS;

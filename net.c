@@ -60,16 +60,27 @@ net_loop(struct net_context* ctx)
     &ctx->writefds, &ctx->nfds, ctx->udp_boundfds, sizeof ctx->udp_boundfds);
 
   do {
-    struct net_tcp_conn* tcp_conn_1;
-    LIST_FOREACH(tcp_conn_1, &ctx->tcp_conns, entry)
+
+    /* remove every fd that has an empty send buffer from the writefds fd_set
+     * and add every fd that has a non-empty send buffer to the writefds fd_set.
+     *
+     * we do this because otherwise select(2) will always return early saying
+     * that some fds are ready for writing when we don't have anything to write
+     * to them, effectively wasting cpu time.
+     */
+    struct net_tcp_conn* set_writefds_tcp_conn_1;
+    LIST_FOREACH(set_writefds_tcp_conn_1, &ctx->tcp_conns, entry)
     {
-      if (tcp_conn_1->send_buf.size > 0) {
-        FD_SET(tcp_conn_1->fd, &ctx->writefds);
+      if (set_writefds_tcp_conn_1->send_buf.size > 0) {
+        FD_SET(set_writefds_tcp_conn_1->fd, &ctx->writefds);
       } else {
-        FD_CLR(tcp_conn_1->fd, &ctx->writefds);
+        FD_CLR(set_writefds_tcp_conn_1->fd, &ctx->writefds);
       }
     }
 
+    /* adjust nfds with the changes in the writefds fd_set, nfds must be higher
+     * than the highest integer (fd) in any of the fd_sets, but also as low as
+     * possible while still being the highest to avoid wasting resources */
     for (int fd = 0; fd < FD_SETSIZE; ++fd) {
       if ((FD_ISSET(fd, &ctx->writefds) || FD_ISSET(fd, &ctx->readfds))) {
         ctx->nfds = fd + 1;

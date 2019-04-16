@@ -92,6 +92,8 @@ struct net_context
   /*
     Store bound non-blocking UDP sockets in this array.
     Unused elements must be negative.
+
+    NOT IMPLEMENTED YET.
   */
   int udp_boundfds[4];
 

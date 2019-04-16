@@ -4,9 +4,11 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
+#include <unistd.h>
+
 #include "queue.h"
 
-#define RECV_SIZE 1024
+#define RECV_SIZE sysconf(_SC_PAGESIZE)
 
 #define E(x) (-(x))
 

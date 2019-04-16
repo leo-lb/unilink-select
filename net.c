@@ -138,7 +138,14 @@ net_loop(struct net_context* ctx)
                   free(tcp_conn);
 
                   /* accept(2) until it returns an error saying it will block */
-                  if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                  if (errno == EAGAIN || errno == EWOULDBLOCK ||
+                      errno == EINTR) {
+                    break;
+                  } else {
+                    /*
+                      also break because we don't want an infinite loop if
+                      accept(2) somehow fails
+                    */
                     break;
                   }
                 }
@@ -241,9 +248,12 @@ net_loop(struct net_context* ctx)
                   break;
                 }
 
-                /* another kind of error, close the connection */
-                event_data.flags = NET_EVENT_CLOSED_RECV;
-                goto close_fd_recv;
+                if (errno != EINTR) { /* if the call was interrupted by a signal
+                                         just retry */
+                  /* another kind of error, close the connection */
+                  event_data.flags = NET_EVENT_CLOSED_RECV;
+                  goto close_fd_recv;
+                }
               }
 
               continue;
@@ -324,9 +334,12 @@ net_loop(struct net_context* ctx)
                   break;
                 }
 
-                /* another kind of error, close the connection */
-                event_data.flags = NET_EVENT_CLOSED_SEND;
-                goto close_fd_send;
+                if (errno != EINTR) { /* if the call was interrupted by a signal
+                                         just retry */
+                  /* another kind of error, close the connection */
+                  event_data.flags = NET_EVENT_CLOSED_SEND;
+                  goto close_fd_send;
+                }
               }
 
               continue;

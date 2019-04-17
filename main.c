@@ -1,9 +1,14 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 
+#ifdef DEBUG
 #include <stdio.h>
+#endif
+
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,14 +53,15 @@ net_cb_fn_test(int event, void* event_data, void** p)
              (const char*)((struct net_event_data_received*)event_data)
                ->tcp_conn->receive_buf.p);
 
-      mem_free_buf(
+      /* mem_free_buf(
         &((struct net_event_data_received*)event_data)->tcp_conn->receive_buf);
+      */
 
-      char* to_send = "Hello\n";
+      /* char* to_send = "Hello\n";
       mem_grow_buf(
         &((struct net_event_data_received*)event_data)->tcp_conn->send_buf,
         to_send,
-        strlen(to_send));
+        strlen(to_send)); */
       break;
   }
 
@@ -63,6 +69,111 @@ net_cb_fn_test(int event, void* event_data, void** p)
   return 0;
 }
 #endif
+
+inline uint8_t
+read_net_uint8(uint8_t** p)
+{
+  uint8_t v = **p;
+
+  *p += sizeof(uint8_t);
+
+  return v;
+}
+
+inline uint16_t
+read_net_uint16(uint8_t** p)
+{
+  uint16_t v = *(uint16_t*)*p;
+
+  *p += sizeof(uint16_t);
+
+  return ntohs(v);
+}
+
+inline uint32_t
+read_net_uint32(uint8_t** p)
+{
+  uint32_t v = *(uint32_t*)*p;
+
+  *p += sizeof(uint32_t);
+
+  return ntohl(v);
+}
+
+int
+net_cb_command_received(int event, void* event_data, void** p)
+{
+  (void)p;
+
+  if (event == NET_EVENT_RECEIVED) {
+    struct net_event_data_received* received = event_data;
+
+    if (received->tcp_conn->receive_buf.size >=
+        sizeof(uint8_t) + sizeof(uint16_t) * 2 + sizeof(uint32_t) * 2) {
+      struct command_header header;
+      uint8_t* buf = received->tcp_conn->receive_buf.p;
+
+      header.flags = read_net_uint8(&buf);
+      header.tag = read_net_uint32(&buf);
+      header.type = read_net_uint16(&buf);
+      header.version = read_net_uint16(&buf);
+      header.size = read_net_uint32(&buf);
+
+      mem_shrink_buf_head(&received->tcp_conn->receive_buf,
+                          (size_t)buf -
+                            (size_t)received->tcp_conn->receive_buf.p);
+
+      buf = received->tcp_conn->receive_buf.p;
+
+#ifdef DEBUG
+      printf("command_header {\n\tflags: %hhd\n\ttag: %d\n\ttype: "
+             "%hd\n\tversion: %hd\n"
+             "\tsize: %d\n}\n",
+             header.flags,
+             header.tag,
+             header.type,
+             header.version,
+             header.size);
+#endif
+
+      if (header.flags & COMMAND_HEADER_IS_REQUEST) {
+        switch (header.type) {
+          case COMMAND_PING:
+            if (received->tcp_conn->receive_buf.size >= header.size) {
+              struct command_header response_header;
+
+              response_header.flags = 0;
+              response_header.tag = htonl(header.tag);
+              response_header.type = htons(header.type);
+              response_header.version = htons(0);
+              response_header.size = htonl(header.size);
+
+              mem_grow_buf(&received->tcp_conn->send_buf,
+                           &response_header.flags,
+                           sizeof response_header.flags);
+              mem_grow_buf(&received->tcp_conn->send_buf,
+                           &response_header.tag,
+                           sizeof response_header.tag);
+              mem_grow_buf(&received->tcp_conn->send_buf,
+                           &response_header.type,
+                           sizeof response_header.type);
+              mem_grow_buf(&received->tcp_conn->send_buf,
+                           &response_header.version,
+                           sizeof response_header.version);
+              mem_grow_buf(&received->tcp_conn->send_buf,
+                           &response_header.size,
+                           sizeof response_header.size);
+              mem_grow_buf(&received->tcp_conn->send_buf, buf, header.size);
+            }
+            break;
+        }
+      } else {
+      }
+    }
+  }
+
+  return 0;
+}
 
 int
 main(int argc, char* argv[])
@@ -151,6 +262,20 @@ main(int argc, char* argv[])
 
     LIST_INSERT_HEAD(&ctx.callbacks, net_cb, entry);
 #endif
+
+    struct net_callback* net_cb_received = calloc(1, sizeof *net_cb_received);
+    if (net_cb_received == NULL) {
+#ifdef DEBUG
+      perror("calloc");
+#endif
+      close(tcp_fd);
+      return EXIT_FAILURE;
+    }
+
+    net_cb_received->events = NET_EVENT_RECEIVED;
+    net_cb_received->cb = net_cb_command_received;
+
+    LIST_INSERT_HEAD(&ctx.callbacks, net_cb_received, entry);
 
     int nonblock_ret = net_set_nonblock(tcp_fd);
     if (nonblock_ret != NET_SET_NONBLOCK_OK) {

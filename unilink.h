@@ -4,6 +4,10 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+#include <stdint.h>
 #include <unistd.h>
 
 #include "queue.h"
@@ -179,5 +183,28 @@ enum
 
 int
 net_loop(struct net_context* ctx);
+
+uint8_t
+read_net_uint8(uint8_t** p);
+uint16_t
+read_net_uint16(uint8_t** p);
+uint32_t
+read_net_uint32(uint8_t** p);
+
+#define COMMAND_HEADER_IS_REQUEST 0x1
+
+enum
+{
+  COMMAND_PING,
+} command_types;
+
+struct command_header
+{
+  uint8_t flags;
+  uint32_t tag;
+  uint16_t type;
+  uint16_t version;
+  uint32_t size;
+};
 
 #endif

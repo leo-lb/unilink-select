@@ -178,117 +178,119 @@ net_cb_command_received(int event, void* event_data, void** p)
 int
 main(int argc, char* argv[])
 {
+  unsigned short port = 0;
+
   if (argc > 1) {
-    unsigned short port = (unsigned short)atoi(argv[1]);
-
-    int socket_ret = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_ret == -1) {
-#ifdef DEBUG
-      perror("socket");
-#endif
-      return EXIT_FAILURE;
-    }
-
-    int tcp_fd = socket_ret;
-
-    struct sockaddr_in sa;
-    memset(&sa, 0, sizeof sa);
-
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(port);
-    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-    socklen_t salen = sizeof sa;
-
-    int bind_ret = bind(tcp_fd, (struct sockaddr*)&sa, salen);
-    if (bind_ret == -1) {
-#ifdef DEBUG
-      perror("bind");
-#endif
-      close(tcp_fd);
-      return EXIT_FAILURE;
-    }
-
-    int listen_ret = listen(tcp_fd, 256);
-    if (listen_ret == -1) {
-#ifdef DEBUG
-      perror("listen");
-#endif
-      close(tcp_fd);
-      return EXIT_FAILURE;
-    }
-
-    struct net_context ctx;
-    memset(&ctx, 0, sizeof ctx);
-
-    ctx.tcp_boundfds[0] = tcp_fd;
-    ctx.tcp_boundfds[1] = -1;
-    ctx.tcp_boundfds[2] = -1;
-    ctx.tcp_boundfds[3] = -1;
-
-    ctx.udp_boundfds[0] = -1;
-    ctx.udp_boundfds[1] = -1;
-    ctx.udp_boundfds[2] = -1;
-    ctx.udp_boundfds[3] = -1;
-
-    struct sockaddr_in sa2;
-    memset(&sa2, 0, sizeof sa2);
-
-    socklen_t sa2len = sizeof sa2;
-
-    int getsockname_ret = getsockname(tcp_fd, (struct sockaddr*)&sa2, &sa2len);
-    if (getsockname_ret == -1) {
-#ifdef DEBUG
-      perror("getsockname");
-#endif
-      close(tcp_fd);
-      return EXIT_FAILURE;
-    }
-
-#ifdef DEBUG
-    printf("listening on port %hu\n", ntohs(sa2.sin_port));
-#endif
-
-#ifdef DEBUG
-    struct net_callback* net_cb = calloc(1, sizeof *net_cb);
-    if (net_cb == NULL) {
-      perror("calloc");
-      close(tcp_fd);
-      return EXIT_FAILURE;
-    }
-
-    net_cb->events = ~0;
-    net_cb->cb = net_cb_fn_test;
-
-    LIST_INSERT_HEAD(&ctx.callbacks, net_cb, entry);
-#endif
-
-    struct net_callback* net_cb_received = calloc(1, sizeof *net_cb_received);
-    if (net_cb_received == NULL) {
-#ifdef DEBUG
-      perror("calloc");
-#endif
-      close(tcp_fd);
-      return EXIT_FAILURE;
-    }
-
-    net_cb_received->events = NET_EVENT_RECEIVED;
-    net_cb_received->cb = net_cb_command_received;
-
-    LIST_INSERT_HEAD(&ctx.callbacks, net_cb_received, entry);
-
-    int nonblock_ret = net_set_nonblock(tcp_fd);
-    if (nonblock_ret != NET_SET_NONBLOCK_OK) {
-      close(tcp_fd);
-      return EXIT_FAILURE;
-    }
-
-    net_loop(&ctx);
-
-#ifdef DEBUG
-    free(net_cb);
-#endif
+    port = (unsigned short)atoi(argv[1]);
   }
+
+  int socket_ret = socket(AF_INET, SOCK_STREAM, 0);
+  if (socket_ret == -1) {
+#ifdef DEBUG
+    perror("socket");
+#endif
+    return EXIT_FAILURE;
+  }
+
+  int tcp_fd = socket_ret;
+
+  struct sockaddr_in sa;
+  memset(&sa, 0, sizeof sa);
+
+  sa.sin_family = AF_INET;
+  sa.sin_port = htons(port);
+  sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+  socklen_t salen = sizeof sa;
+
+  int bind_ret = bind(tcp_fd, (struct sockaddr*)&sa, salen);
+  if (bind_ret == -1) {
+#ifdef DEBUG
+    perror("bind");
+#endif
+    close(tcp_fd);
+    return EXIT_FAILURE;
+  }
+
+  int listen_ret = listen(tcp_fd, 256);
+  if (listen_ret == -1) {
+#ifdef DEBUG
+    perror("listen");
+#endif
+    close(tcp_fd);
+    return EXIT_FAILURE;
+  }
+
+  struct net_context ctx;
+  memset(&ctx, 0, sizeof ctx);
+
+  ctx.tcp_boundfds[0] = tcp_fd;
+  ctx.tcp_boundfds[1] = -1;
+  ctx.tcp_boundfds[2] = -1;
+  ctx.tcp_boundfds[3] = -1;
+
+  ctx.udp_boundfds[0] = -1;
+  ctx.udp_boundfds[1] = -1;
+  ctx.udp_boundfds[2] = -1;
+  ctx.udp_boundfds[3] = -1;
+
+  struct sockaddr_in sa2;
+  memset(&sa2, 0, sizeof sa2);
+
+  socklen_t sa2len = sizeof sa2;
+
+  int getsockname_ret = getsockname(tcp_fd, (struct sockaddr*)&sa2, &sa2len);
+  if (getsockname_ret == -1) {
+#ifdef DEBUG
+    perror("getsockname");
+#endif
+    close(tcp_fd);
+    return EXIT_FAILURE;
+  }
+
+#ifdef DEBUG
+  printf("listening on port %hu\n", ntohs(sa2.sin_port));
+#endif
+
+#ifdef DEBUG
+  struct net_callback* net_cb = calloc(1, sizeof *net_cb);
+  if (net_cb == NULL) {
+    perror("calloc");
+    close(tcp_fd);
+    return EXIT_FAILURE;
+  }
+
+  net_cb->events = ~0;
+  net_cb->cb = net_cb_fn_test;
+
+  LIST_INSERT_HEAD(&ctx.callbacks, net_cb, entry);
+#endif
+
+  struct net_callback* net_cb_received = calloc(1, sizeof *net_cb_received);
+  if (net_cb_received == NULL) {
+#ifdef DEBUG
+    perror("calloc");
+#endif
+    close(tcp_fd);
+    return EXIT_FAILURE;
+  }
+
+  net_cb_received->events = NET_EVENT_RECEIVED;
+  net_cb_received->cb = net_cb_command_received;
+
+  LIST_INSERT_HEAD(&ctx.callbacks, net_cb_received, entry);
+
+  int nonblock_ret = net_set_nonblock(tcp_fd);
+  if (nonblock_ret != NET_SET_NONBLOCK_OK) {
+    close(tcp_fd);
+    return EXIT_FAILURE;
+  }
+
+  net_loop(&ctx);
+
+#ifdef DEBUG
+  free(net_cb);
+#endif
 
   return EXIT_SUCCESS;
 }

@@ -176,13 +176,15 @@ net_cb_command_received(int event, void* event_data, void** p)
 }
 
 int
-main(int argc, char* argv[])
+main(void)
 {
   unsigned short port = 0;
 
+  /*
   if (argc > 1) {
     port = (unsigned short)atoi(argv[1]);
   }
+  */
 
   int socket_ret = socket(AF_INET, SOCK_STREAM, 0);
   if (socket_ret == -1) {

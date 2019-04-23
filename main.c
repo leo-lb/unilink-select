@@ -8,6 +8,7 @@
 #include <stdio.h>
 #endif
 
+#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,34 +71,47 @@ net_cb_fn_test(int event, void* event_data, void** p)
 }
 #endif
 
-inline uint8_t
-read_net_uint8(uint8_t** p)
+inline unsigned char
+read_net_octet(unsigned char** p)
 {
-  uint8_t v = **p;
+  /* Read 1 octet. TCP/UDP is octet oriented so we are
+   * guaranteed to have 8 bits per unsigned char and an unsigned char is
+   * guaranteed by the C standard to be able to hold at least 2^8-1. */
+  unsigned char v = (*p)[0];
 
-  *p += sizeof(uint8_t);
+  *p += 1;
 
   return v;
 }
 
-inline uint16_t
-read_net_uint16(uint8_t** p)
+inline unsigned short
+read_net_2_octets(unsigned char** p)
 {
-  uint16_t v = *(uint16_t*)*p;
+  unsigned short v;
 
-  *p += sizeof(uint16_t);
+  /* Read 2 octets in network byte order. TCP/UDP is octet oriented so we are
+   * guaranteed to have 8 bits per unsigned char and an unsigned short is
+   * guaranteed by the C standard to be able to hold at least 2^16-1. */
+  v = ((*p)[1] << 0) | ((*p)[0] << 8);
 
-  return ntohs(v);
+  *p += 2;
+
+  return v;
 }
 
-inline uint32_t
-read_net_uint32(uint8_t** p)
+inline unsigned long
+read_net_4_octets(unsigned char** p)
 {
-  uint32_t v = *(uint32_t*)*p;
+  unsigned long v;
 
-  *p += sizeof(uint32_t);
+  /* Read 4 octets in network byte order. TCP/UDP is octet oriented so we are
+   * guaranteed to have 8 bits per unsigned char and an unsigned long is
+   * guaranteed by the C standard to be able to hold at least 2^32-1. */
+  v = ((*p)[3] << 0) | ((*p)[2] << 8) | ((*p)[1] << 16) | ((*p)[0] << 24);
 
-  return ntohl(v);
+  *p += 4;
+
+  return v;
 }
 
 int
@@ -108,16 +122,19 @@ net_cb_command_received(int event, void* event_data, void** p)
   if (event == NET_EVENT_RECEIVED) {
     struct net_event_data_received* received = event_data;
 
-    if (received->tcp_conn->receive_buf.size >=
-        sizeof(uint8_t) + sizeof(uint16_t) * 2 + sizeof(uint32_t) * 2) {
+    if (received->tcp_conn->receive_buf.size >= (
+      1 /* flags */
+      + 2 * 2 /* type and version */
+      + 4 * 2 /* tag and size */
+      ) {
       struct command_header header;
-      uint8_t* buf = received->tcp_conn->receive_buf.p;
+      unsigned char* buf = received->tcp_conn->receive_buf.p;
 
-      header.flags = read_net_uint8(&buf);
-      header.tag = read_net_uint32(&buf);
-      header.type = read_net_uint16(&buf);
-      header.version = read_net_uint16(&buf);
-      header.size = read_net_uint32(&buf);
+      header.flags = read_net_octet(&buf);
+      header.tag = read_net_4_octets(&buf);
+      header.type = read_net_2_octets(&buf);
+      header.version = read_net_2_octets(&buf);
+      header.size = read_net_4_octets(&buf);
 
       mem_shrink_buf_head(&received->tcp_conn->receive_buf,
                           (size_t)buf -
@@ -143,11 +160,13 @@ net_cb_command_received(int event, void* event_data, void** p)
               struct command_header response_header;
 
               response_header.flags = 0;
-              response_header.tag = htonl(header.tag);
-              response_header.type = htons(header.type);
-              response_header.version = htons(0);
-              response_header.size = htonl(header.size);
+              response_header.tag = header.tag;
+              response_header.type = header.type;
+              response_header.version = 0;
+              response_header.size = header.size;
 
+              /* TODO: Create write_net_octet(s) functions and change the code
+               * below */
               mem_grow_buf(&received->tcp_conn->send_buf,
                            &response_header.flags,
                            sizeof response_header.flags);

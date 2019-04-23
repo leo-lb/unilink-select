@@ -165,14 +165,20 @@ struct net_event_data_closed
 struct net_event_data_sent
 {
   int flags;
+
+  /* How many bytes were sent to the receive buffer on this event */
   size_t count;
+
   struct net_tcp_conn* tcp_conn;
 };
 
 struct net_event_data_received
 {
   int flags;
+
+  /* How many bytes were written to the receive buffer on this event */
   size_t count;
+
   struct net_tcp_conn* tcp_conn;
 };
 
@@ -184,27 +190,61 @@ enum
 int
 net_loop(struct net_context* ctx);
 
-uint8_t
-read_net_uint8(uint8_t** p);
-uint16_t
-read_net_uint16(uint8_t** p);
-uint32_t
-read_net_uint32(uint8_t** p);
+unsigned char
+read_net_octet(unsigned char** p);
+unsigned short
+read_net_2_octets(unsigned char** p);
+unsigned long
+read_net_4_octets(unsigned char** p);
 
 #define COMMAND_HEADER_IS_REQUEST 0x1
 
 enum
 {
   COMMAND_PING,
+  COMMAND_ANNOUNCE,
 } command_types;
 
 struct command_header
 {
-  uint8_t flags;
-  uint32_t tag;
-  uint16_t type;
-  uint16_t version;
-  uint32_t size;
+  unsigned char flags;
+
+  /* Tag number, used for unordered command pipelining */
+  unsigned long tag;
+
+  /* Type of the command */
+  unsigned short type;
+
+  /* Version of the command */
+  unsigned short version;
+
+  /* Size of data following the header */
+  unsigned long size;
+};
+
+enum
+{
+  ROLE_NODE,
+  ROLE_SUPERNODE,
+  ROLE_BRIDGE,
+  ROLE_MASTER
+} role_types;
+
+struct command_announce
+{
+  /* Role of the peer */
+  unsigned char role;
+
+  /* Port the peer is listening on, 0 for none */
+  unsigned short port;
+
+  /* Additional peer addresses that the peer is sharing, if an element is
+   * entirely zero, it should be ignored */
+  struct sockaddr_storage more_addrs[4];
+
+  /* For each additional peer address, the port the additional peer is listening
+   * on will be at the corresponding index, 0 if none */
+  unsigned short more_ports[4];
 };
 
 #endif

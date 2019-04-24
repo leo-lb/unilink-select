@@ -125,10 +125,8 @@ write_net_octet(unsigned char** p, unsigned char v)
 inline void
 write_net_2_octets(unsigned char** p, unsigned short v)
 {
-  (*p)[0] = (v << (8 * (sizeof(unsigned short) - 1))) >>
-            (8 * (sizeof(unsigned short) - 1));
-  (*p)[1] = (v << (8 * (sizeof(unsigned short) - 2))) >>
-            (8 * (sizeof(unsigned short) - 1));
+  (*p)[1] = (v >> (0 * 8)) & UCHAR_MAX;
+  (*p)[0] = (v >> (1 * 8)) & UCHAR_MAX;
 
   *p += 2;
 }
@@ -136,14 +134,10 @@ write_net_2_octets(unsigned char** p, unsigned short v)
 inline void
 write_net_4_octets(unsigned char** p, unsigned long v)
 {
-  (*p)[0] = (v << (8 * (sizeof(unsigned long) - 4))) >>
-            (8 * (sizeof(unsigned long) - 1));
-  (*p)[1] = (v << (8 * (sizeof(unsigned long) - 3))) >>
-            (8 * (sizeof(unsigned long) - 1));
-  (*p)[2] = (v << (8 * (sizeof(unsigned long) - 2))) >>
-            (8 * (sizeof(unsigned long) - 1));
-  (*p)[3] = (v << (8 * (sizeof(unsigned long) - 1))) >>
-            (8 * (sizeof(unsigned long) - 1));
+  (*p)[3] = (v >> (0 * 8)) & UCHAR_MAX;
+  (*p)[2] = (v >> (1 * 8)) & UCHAR_MAX;
+  (*p)[1] = (v >> (2 * 8)) & UCHAR_MAX;
+  (*p)[0] = (v >> (3 * 8)) & UCHAR_MAX;
 
   *p += 4;
 }

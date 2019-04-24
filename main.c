@@ -71,6 +71,7 @@ net_cb_fn_test(int event, void* event_data, void** p)
 }
 #endif
 
+#if CHAR_BIT == 8
 inline unsigned char
 read_net_octet(unsigned char** p)
 {
@@ -141,6 +142,10 @@ write_net_4_octets(unsigned char** p, unsigned long v)
 
   *p += 4;
 }
+
+#else
+#error "Implement for CHAR_BIT != 8"
+#endif
 
 int
 net_cb_command_received(int event, void* event_data, void** p)

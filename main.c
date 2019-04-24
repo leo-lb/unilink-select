@@ -114,6 +114,40 @@ read_net_4_octets(unsigned char** p)
   return v;
 }
 
+inline void
+write_net_octet(unsigned char** p, unsigned char v)
+{
+  (*p)[0] = v;
+
+  *p += 1;
+}
+
+inline void
+write_net_2_octets(unsigned char** p, unsigned short v)
+{
+  (*p)[0] = (v << (8 * (sizeof(unsigned short) - 1))) >>
+            (8 * (sizeof(unsigned short) - 1));
+  (*p)[1] = (v << (8 * (sizeof(unsigned short) - 2))) >>
+            (8 * (sizeof(unsigned short) - 1));
+
+  *p += 2;
+}
+
+inline void
+write_net_4_octets(unsigned char** p, unsigned long v)
+{
+  (*p)[0] = (v << (8 * (sizeof(unsigned long) - 4))) >>
+            (8 * (sizeof(unsigned long) - 1));
+  (*p)[1] = (v << (8 * (sizeof(unsigned long) - 3))) >>
+            (8 * (sizeof(unsigned long) - 1));
+  (*p)[2] = (v << (8 * (sizeof(unsigned long) - 2))) >>
+            (8 * (sizeof(unsigned long) - 1));
+  (*p)[3] = (v << (8 * (sizeof(unsigned long) - 1))) >>
+            (8 * (sizeof(unsigned long) - 1));
+
+  *p += 4;
+}
+
 int
 net_cb_command_received(int event, void* event_data, void** p)
 {
@@ -122,11 +156,10 @@ net_cb_command_received(int event, void* event_data, void** p)
   if (event == NET_EVENT_RECEIVED) {
     struct net_event_data_received* received = event_data;
 
-    if (received->tcp_conn->receive_buf.size >= (
-      1 /* flags */
-      + 2 * 2 /* type and version */
-      + 4 * 2 /* tag and size */
-      ) {
+    if (received->tcp_conn->receive_buf.size >= (1       /* flags */
+                                                 + 2 * 2 /* type and version */
+                                                 + 4 * 2 /* tag and size */
+                                                 )) {
       struct command_header header;
       unsigned char* buf = received->tcp_conn->receive_buf.p;
 
@@ -143,9 +176,9 @@ net_cb_command_received(int event, void* event_data, void** p)
       buf = received->tcp_conn->receive_buf.p;
 
 #ifdef DEBUG
-      printf("command_header {\n\tflags: %hhd\n\ttag: %d\n\ttype: "
-             "%hd\n\tversion: %hd\n"
-             "\tsize: %d\n}\n",
+      printf("command_header {\n\tflags: 0x%hhx\n\ttag: 0x%lx\n\ttype: "
+             "0x%hx\n\tversion: 0x%hx\n"
+             "\tsize: 0x%lx\n}\n",
              header.flags,
              header.tag,
              header.type,
@@ -157,32 +190,32 @@ net_cb_command_received(int event, void* event_data, void** p)
         switch (header.type) {
           case COMMAND_PING:
             if (received->tcp_conn->receive_buf.size >= header.size) {
-              struct command_header response_header;
+              if (mem_grow_buf(&received->tcp_conn->send_buf,
+                               NULL,
+                               1               /* flags */
+                                 + 2 * 2       /* type and version */
+                                 + 4 * 2       /* tag and size */
+                                 + header.size /* data size */
+                               ) == MEM_GROW_BUF_OK) {
+                unsigned char* sbuf = received->tcp_conn->send_buf.p;
 
-              response_header.flags = 0;
-              response_header.tag = header.tag;
-              response_header.type = header.type;
-              response_header.version = 0;
-              response_header.size = header.size;
+                write_net_octet(&sbuf, 0);              /* flags */
+                write_net_4_octets(&sbuf, header.tag);  /* tag */
+                write_net_2_octets(&sbuf, header.type); /* type */
+                write_net_2_octets(&sbuf, 0);           /* version */
+                write_net_4_octets(&sbuf, header.size); /* size */
 
-              /* TODO: Create write_net_octet(s) functions and change the code
-               * below */
-              mem_grow_buf(&received->tcp_conn->send_buf,
-                           &response_header.flags,
-                           sizeof response_header.flags);
-              mem_grow_buf(&received->tcp_conn->send_buf,
-                           &response_header.tag,
-                           sizeof response_header.tag);
-              mem_grow_buf(&received->tcp_conn->send_buf,
-                           &response_header.type,
-                           sizeof response_header.type);
-              mem_grow_buf(&received->tcp_conn->send_buf,
-                           &response_header.version,
-                           sizeof response_header.version);
-              mem_grow_buf(&received->tcp_conn->send_buf,
-                           &response_header.size,
-                           sizeof response_header.size);
-              mem_grow_buf(&received->tcp_conn->send_buf, buf, header.size);
+                memcpy(sbuf, buf, header.size);
+
+                buf += header.size;
+
+                mem_shrink_buf_head(
+                  &received->tcp_conn->receive_buf,
+                  (size_t)buf - (size_t)received->tcp_conn->receive_buf.p);
+              } else {
+                shutdown(received->tcp_conn->fd, SHUT_RDWR);
+                close(received->tcp_conn->fd);
+              }
             }
             break;
         }

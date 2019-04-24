@@ -197,6 +197,13 @@ read_net_2_octets(unsigned char** p);
 unsigned long
 read_net_4_octets(unsigned char** p);
 
+void
+write_net_octet(unsigned char** p, unsigned char v);
+void
+write_net_2_octets(unsigned char** p, unsigned short v);
+void
+write_net_4_octets(unsigned char** p, unsigned long v);
+
 #define COMMAND_HEADER_IS_REQUEST 0x1
 
 enum

@@ -70,6 +70,20 @@ enum
 int
 mem_shrink_buf(struct mem_buf* m, size_t size);
 
+typedef void
+command_state_free_fn(void*);
+
+struct command_state
+{
+  LIST_ENTRY(command_state) entry;
+  unsigned long tag;
+  unsigned short type;
+  void* state;
+  command_state_free_fn* free;
+};
+
+LIST_HEAD(command_states, command_state);
+
 #define NET_TCP_CONN_CONNECTED 0x1
 
 struct net_tcp_conn
@@ -81,6 +95,7 @@ struct net_tcp_conn
   socklen_t sa_len;
   struct mem_buf send_buf;
   struct mem_buf receive_buf;
+  struct command_states states;
 };
 
 LIST_HEAD(net_tcp_conns, net_tcp_conn);

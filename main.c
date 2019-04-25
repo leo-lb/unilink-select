@@ -53,16 +53,6 @@ net_cb_fn_test(int event, void* event_data, void** p)
                ->tcp_conn->receive_buf.size,
              (const char*)((struct net_event_data_received*)event_data)
                ->tcp_conn->receive_buf.p);
-
-      /* mem_free_buf(
-        &((struct net_event_data_received*)event_data)->tcp_conn->receive_buf);
-      */
-
-      /* char* to_send = "Hello\n";
-      mem_grow_buf(
-        &((struct net_event_data_received*)event_data)->tcp_conn->send_buf,
-        to_send,
-        strlen(to_send)); */
       break;
   }
 
@@ -168,9 +158,12 @@ net_cb_command_received(int event, void* event_data, void** p)
       header.version = read_net_2_octets(&buf);
       header.size = read_net_4_octets(&buf);
 
-      mem_shrink_buf_head(&received->tcp_conn->receive_buf,
-                          (size_t)buf -
-                            (size_t)received->tcp_conn->receive_buf.p);
+      if (mem_shrink_buf_head(&received->tcp_conn->receive_buf,
+                              (size_t)buf -
+                                (size_t)received->tcp_conn->receive_buf.p) !=
+          MEM_SHRINK_BUF_HEAD_OK) {
+        goto close_fd;
+      }
 
       buf = received->tcp_conn->receive_buf.p;
 
@@ -185,9 +178,9 @@ net_cb_command_received(int event, void* event_data, void** p)
              header.size);
 #endif
 
-      if (header.flags & COMMAND_HEADER_IS_REQUEST) {
-        switch (header.type) {
-          case COMMAND_PING:
+      switch (header.type) {
+        case COMMAND_PING:
+          if (header.flags & COMMAND_HEADER_IS_REQUEST) {
             if (received->tcp_conn->receive_buf.size >= header.size) {
               if (mem_grow_buf(&received->tcp_conn->send_buf,
                                NULL,
@@ -195,31 +188,44 @@ net_cb_command_received(int event, void* event_data, void** p)
                                  + 2 * 2       /* type and version */
                                  + 4 * 2       /* tag and size */
                                  + header.size /* data size */
-                               ) == MEM_GROW_BUF_OK) {
-                unsigned char* sbuf = received->tcp_conn->send_buf.p;
+                               ) != MEM_GROW_BUF_OK) {
+                goto close_fd;
+              }
 
-                write_net_octet(&sbuf, 0);              /* flags */
-                write_net_4_octets(&sbuf, header.tag);  /* tag */
-                write_net_2_octets(&sbuf, header.type); /* type */
-                write_net_2_octets(&sbuf, 0);           /* version */
-                write_net_4_octets(&sbuf, header.size); /* size */
+              unsigned char* sbuf = received->tcp_conn->send_buf.p;
 
-                memcpy(sbuf, buf, header.size);
+              write_net_octet(&sbuf, 0);              /* flags */
+              write_net_4_octets(&sbuf, header.tag);  /* tag */
+              write_net_2_octets(&sbuf, header.type); /* type */
+              write_net_2_octets(&sbuf, 0);           /* version */
+              write_net_4_octets(&sbuf, header.size); /* size */
 
-                buf += header.size;
+              memcpy(sbuf, buf, header.size);
 
-                mem_shrink_buf_head(
-                  &received->tcp_conn->receive_buf,
-                  (size_t)buf - (size_t)received->tcp_conn->receive_buf.p);
-              } else {
-                shutdown(received->tcp_conn->fd, SHUT_RDWR);
-                close(received->tcp_conn->fd);
+              buf += header.size;
+
+              if (mem_shrink_buf_head(
+                    &received->tcp_conn->receive_buf,
+                    (size_t)buf - (size_t)received->tcp_conn->receive_buf.p) !=
+                  MEM_SHRINK_BUF_HEAD_OK) {
+                goto close_fd;
               }
             }
-            break;
-        }
-      } else {
+          } else {
+          }
+          break;
       }
+    }
+
+    /* don't go into this code path unless goto is used */
+    if (0) {
+      /* This will cause the networking loop to discard the fd and all resources
+       * associated with it */
+
+    close_fd:
+      shutdown(received->tcp_conn->fd, SHUT_RDWR);
+      close(received->tcp_conn->fd);
+      return 0;
     }
   }
 

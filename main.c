@@ -180,8 +180,8 @@ net_cb_command_received(int event, void* event_data, void** p)
 
       switch (header.type) {
         case COMMAND_PING:
-          if (header.flags & COMMAND_HEADER_IS_REQUEST) {
-            if (received->tcp_conn->receive_buf.size >= header.size) {
+          if (received->tcp_conn->receive_buf.size >= header.size) {
+            if (header.flags & COMMAND_HEADER_IS_REQUEST) {
               if (mem_grow_buf(&received->tcp_conn->send_buf,
                                NULL,
                                1               /* flags */
@@ -210,9 +210,42 @@ net_cb_command_received(int event, void* event_data, void** p)
                   MEM_SHRINK_BUF_HEAD_OK) {
                 goto close_fd;
               }
+            } else {
+              struct command_state* state;
+
+              LIST_FOREACH(state, &received->tcp_conn->states, entry)
+              {
+                if (state->type != COMMAND_PING)
+                  continue;
+
+                struct command_state_ping* state_ping = state->state;
+
+                if (state_ping->tag != header.tag)
+                  continue;
+
+                if (state_ping->size != header.size ||
+                    (memcmp(state_ping->data, buf, header.size) != 0)) {
+                  state_ping->progress |= COMMAND_STATE_PING_INVALID_RESPONSE;
+                } else {
+                  state_ping->progress |= COMMAND_STATE_PING_VALID_RESPONSE;
+                }
+
+                buf += header.size;
+
+                if (mem_shrink_buf_head(
+                      &received->tcp_conn->receive_buf,
+                      (size_t)buf -
+                        (size_t)received->tcp_conn->receive_buf.p) !=
+                    MEM_SHRINK_BUF_HEAD_OK) {
+                  goto close_fd;
+                }
+
+                break;
+              }
             }
-          } else {
           }
+          break;
+        case COMMAND_ANNOUNCE:
           break;
       }
     }

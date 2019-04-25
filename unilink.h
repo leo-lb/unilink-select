@@ -76,7 +76,6 @@ command_state_free_fn(void*);
 struct command_state
 {
   LIST_ENTRY(command_state) entry;
-  unsigned long tag;
   unsigned short type;
   void* state;
   command_state_free_fn* free;
@@ -267,6 +266,18 @@ struct command_announce
   /* For each additional peer address, the port the additional peer is listening
    * on will be at the corresponding index, 0 if none */
   unsigned short more_ports[4];
+};
+
+#define COMMAND_STATE_PING_AWAITING_RESPONSE 0x0
+#define COMMAND_STATE_PING_VALID_RESPONSE 0x1
+#define COMMAND_STATE_PING_INVALID_RESPONSE 0x2
+
+struct command_state_ping
+{
+  unsigned long tag;
+  int progress;
+  size_t size;
+  void* data;
 };
 
 #endif

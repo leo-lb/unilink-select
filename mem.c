@@ -23,6 +23,11 @@ mem_grow_buf(struct mem_buf* m, void* p, size_t size)
   }
 
   void* new_p = realloc(m->p, new_size);
+
+  /* if new_size is 0 then it is expected that realloc returns NULL, it is not
+   * an error. We will end up copying 0 bytes to a non-existent memory location
+   * because the only way new_size can be 0 is if size is 0.
+   */
   if (new_p == NULL && new_size > 0) {
     return E(MEM_GROW_BUF_ALLOC);
   }
@@ -52,6 +57,11 @@ mem_shrink_buf_head(struct mem_buf* m, size_t size)
   memmove(m->p, m->p + size, new_size);
 
   void* new_p = realloc(m->p, new_size);
+
+  /* if new_size is 0 then it is expected that realloc returns NULL, it is not
+   * an error. We will end up copying 0 bytes to a non-existent memory location
+   * because the only way new_size can be 0 is if size is 0.
+   */
   if (new_p == NULL && new_size > 0) {
     return E(MEM_SHRINK_BUF_HEAD_ALLOC);
   }
@@ -76,6 +86,11 @@ mem_shrink_buf(struct mem_buf* m, size_t size)
   }
 
   void* new_p = realloc(m->p, new_size);
+
+  /* if new_size is 0 then it is expected that realloc returns NULL, it is not
+   * an error. We will end up copying 0 bytes to a non-existent memory location
+   * because the only way new_size can be 0 is if size is 0.
+   */
   if (new_p == NULL && new_size > 0) {
     return E(MEM_SHRINK_BUF_ALLOC);
   }

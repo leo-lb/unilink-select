@@ -251,6 +251,11 @@ enum
   ROLE_MASTER
 } role_types;
 
+enum {
+  FAMILY_IPV4,
+  FAMILY_IPV6
+} address_families;
+
 struct command_announce
 {
   /* Role of the peer */
@@ -259,13 +264,9 @@ struct command_announce
   /* Port the peer is listening on, 0 for none */
   unsigned short port;
 
-  /* Additional peer addresses that the peer is sharing, if an element is
+  /* Additional peer addresses and ports that the peer is sharing, if an element is
    * entirely zero, it should be ignored */
   struct sockaddr_storage more_addrs[4];
-
-  /* For each additional peer address, the port the additional peer is listening
-   * on will be at the corresponding index, 0 if none */
-  unsigned short more_ports[4];
 };
 
 #define COMMAND_STATE_PING_AWAITING_RESPONSE 0x0

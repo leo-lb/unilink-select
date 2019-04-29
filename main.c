@@ -2,7 +2,10 @@
 #include <sys/types.h>
 
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <netinet/in.h>
+
+#include <errno.h>
 
 #ifdef DEBUG
 #include <stdio.h>
@@ -255,8 +258,8 @@ net_cb_command_received(int event, void* event_data, void** p)
               struct command_announce announce = { 0 };
               unsigned long remaining = header.size;
 
-              if (!(remaining >= 1 /* role */
-                                   + 2 /* port */))
+              if (remaining < 1 /* role */
+                                + 2 /* port */)
                 goto close_fd;
 
               announce.role = read_net_octet(&buf);
@@ -264,21 +267,45 @@ net_cb_command_received(int event, void* event_data, void** p)
 
               remaining -= 3;
 
-              for (int index = 0;
+              for (size_t index = 0;
                    remaining > 0 && index < sizeof announce.more_addrs /
                                               sizeof *announce.more_addrs;
                    ++index) {
-                if (!(remaining >= 1 /* address family */))
+                if (remaining < 2 /* family and size */)
                   goto close_fd;
 
-                unsigned char family = read_net_octet(&buf);
-                remaining -= 1;
+                unsigned short family_and_size = read_net_2_octets(&buf);
+                remaining -= 2;
+
+                unsigned char family = family_and_size >> 12;
+                unsigned short size = family_and_size & ~(~0U << 12U);
+
+#ifdef DEBUG
+                printf("family: %hhd size: %hd\n", family, size);
+#endif
+
+                if (remaining < size) {
+#ifdef DEBUG
+                  printf("close_fd: remaining (%ld) < size\n", remaining);
+#endif
+                  goto close_fd;
+                }
+
+#ifdef DEBUG
+                char host[NI_MAXHOST];
+                char serv[NI_MAXSERV];
+#endif
 
                 switch (family) {
                   case FAMILY_IPV4:
                     /* port */
-                    if (!(remaining >= 2))
+                    if (remaining < 2 ||
+                        (size != 2 /* port */ + 4 /* ipv4 */)) {
+#ifdef DEBUG
+                      printf("close_fd: port\n");
+#endif
                       goto close_fd;
+                    }
 
                     struct sockaddr_in* sin =
                       (struct sockaddr_in*)&announce.more_addrs[index];
@@ -289,17 +316,36 @@ net_cb_command_received(int event, void* event_data, void** p)
                     remaining -= 2;
 
                     /* address */
-                    if (!(remaining >= 4))
+                    if (remaining < 4) {
+#ifdef DEBUG
+                      printf("close_fd: address\n");
+#endif
                       goto close_fd;
+                    }
 
                     memcpy(&sin->sin_addr, buf, 4);
                     buf += 4;
 
                     remaining -= 4;
+
+#ifdef DEBUG
+                  int err;
+                    if ((err = getnameinfo((struct sockaddr*)sin,
+                                    sizeof *sin,
+                                    host,
+                                    sizeof host,
+                                    serv,
+                                    sizeof serv,
+                                    NI_NUMERICHOST | NI_NUMERICSERV)) == 0)
+                      printf(
+                        "decoded address: %s - decoded port: %s\n", host, serv);
+                  else
+                    printf("%s %hd\n", gai_strerror (err), ((struct sockaddr *)sin)->sa_family);
+                  #endif
                     break;
                   case FAMILY_IPV6:
                     /* port */
-                    if (!(remaining >= 2))
+                    if (remaining < 2 || (size != 2 /* port */ + 16 /* ipv6 */))
                       goto close_fd;
 
                     struct sockaddr_in6* sin6 =
@@ -311,14 +357,30 @@ net_cb_command_received(int event, void* event_data, void** p)
                     remaining -= 2;
 
                     /* address */
-                    if (!(remaining >= 16))
+                    if (remaining < 16)
                       goto close_fd;
 
                     memcpy(&sin6->sin6_addr, buf, 16);
                     buf += 16;
 
                     remaining -= 16;
+
+#ifdef DEBUG
+                    if (getnameinfo((struct sockaddr*)sin6,
+                                    sizeof *sin6,
+                                    host,
+                                    sizeof host,
+                                    serv,
+                                    sizeof serv,
+                                    NI_NUMERICHOST | NI_NUMERICSERV) == 0)
+                      printf(
+                        "decoded address: %s - decoded port: %s\n", host, serv);
+#endif
+
                     break;
+                  default:
+                    remaining -= size;
+                    buf += size;
                 }
               }
 

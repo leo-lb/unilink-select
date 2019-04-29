@@ -75,6 +75,10 @@ command_state_free_fn(void*);
 
 struct command_state
 {
+  /* The allocator of the state is responsible for destroying it unless the
+   * entire connection is being destroyed, in which case, the networking loop
+   * will destroy it.*/
+
   LIST_ENTRY(command_state) entry;
   unsigned short type;
   void* state;
@@ -279,5 +283,8 @@ struct command_state_ping
   size_t size;
   void* data;
 };
+
+void
+command_state_free_ping(void* p);
 
 #endif

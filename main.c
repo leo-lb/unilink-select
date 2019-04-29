@@ -137,6 +137,16 @@ write_net_4_octets(unsigned char** p, unsigned long v)
 #error "Implement for CHAR_BIT != 8"
 #endif
 
+void
+command_state_free_ping(void* state)
+{
+  struct command_state_ping* state_ping = state;
+
+  free(state_ping->data);
+  state_ping->data = NULL;
+  state_ping->size = 0;
+}
+
 int
 net_cb_command_received(int event, void* event_data, void** p)
 {
@@ -157,15 +167,6 @@ net_cb_command_received(int event, void* event_data, void** p)
       header.type = read_net_2_octets(&buf);
       header.version = read_net_2_octets(&buf);
       header.size = read_net_4_octets(&buf);
-
-      if (mem_shrink_buf_head(&received->tcp_conn->receive_buf,
-                              (size_t)buf -
-                                (size_t)received->tcp_conn->receive_buf.p) !=
-          MEM_SHRINK_BUF_HEAD_OK) {
-        goto close_fd;
-      }
-
-      buf = received->tcp_conn->receive_buf.p;
 
 #ifdef DEBUG
       printf("command_header {\n\tflags: 0x%hhx\n\ttag: 0x%lx\n\ttype: "
@@ -200,6 +201,7 @@ net_cb_command_received(int event, void* event_data, void** p)
               write_net_2_octets(&sbuf, 0);           /* version */
               write_net_4_octets(&sbuf, header.size); /* size */
 
+              /* ping data */
               memcpy(sbuf, buf, header.size);
 
               buf += header.size;
@@ -220,7 +222,9 @@ net_cb_command_received(int event, void* event_data, void** p)
 
                 struct command_state_ping* state_ping = state->state;
 
-                if (state_ping->tag != header.tag)
+                if (state_ping->tag != header.tag &&
+                    !(state_ping->progress &
+                      COMMAND_STATE_PING_AWAITING_RESPONSE))
                   continue;
 
                 if (state_ping->size != header.size ||
@@ -246,6 +250,7 @@ net_cb_command_received(int event, void* event_data, void** p)
           }
           break;
         case COMMAND_ANNOUNCE:
+
           break;
       }
     }

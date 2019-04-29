@@ -458,6 +458,18 @@ net_loop(struct net_context* ctx)
 
         mem_free_buf(&tcp_conn_entry->receive_buf);
         mem_free_buf(&tcp_conn_entry->send_buf);
+
+        /* Free all command states associated with connection */
+        struct command_state* state;
+        while (!LIST_EMPTY(&tcp_conn_entry->states)) {
+          state = LIST_FIRST(&tcp_conn_entry->states);
+          LIST_REMOVE(state, entry);
+          if (state->free) {
+            state->free(state->state);
+          }
+          free(state);
+        }
+
         free(tcp_conn_entry);
 
         tcp_conn_entry = &temp_entry;

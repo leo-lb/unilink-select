@@ -255,7 +255,8 @@ enum
   ROLE_MASTER
 } role_types;
 
-enum {
+enum
+{
   FAMILY_IPV4,
   FAMILY_IPV6
 } address_families;
@@ -268,8 +269,8 @@ struct command_announce
   /* Port the peer is listening on, 0 for none */
   unsigned short port;
 
-  /* Additional peer addresses and ports that the peer is sharing, if an element is
-   * entirely zero, it should be ignored */
+  /* Additional peer addresses and ports that the peer is sharing, if an element
+   * is entirely zero, it should be ignored */
   struct sockaddr_storage more_addrs[4];
 };
 

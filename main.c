@@ -2,12 +2,12 @@
 #include <sys/types.h>
 
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <netinet/in.h>
 
 #include <errno.h>
 
 #ifdef DEBUG
+#include <netdb.h>
 #include <stdio.h>
 #endif
 
@@ -341,7 +341,7 @@ net_cb_command_received(int event, void* event_data, void** p)
                       printf(
                         "decoded address: %s - decoded port: %s\n", host, serv);
                     else
-                      printf("%s %hd\n",
+                      printf("getnameinfo: %s sa_family: %hd\n",
                              gai_strerror(err),
                              ((struct sockaddr*)sin)->sa_family);
 #endif
@@ -378,10 +378,19 @@ net_cb_command_received(int event, void* event_data, void** p)
                                     NI_NUMERICHOST | NI_NUMERICSERV) == 0)
                       printf(
                         "decoded address: %s - decoded port: %s\n", host, serv);
+                    else
+                      printf("getnameinfo: %s sa_family: %hd\n",
+                             gai_strerror(err),
+                             ((struct sockaddr*)sin)->sa_family);
 #endif
-
                     break;
                   default:
+#ifdef DEBUG
+                    printf("could not decode unknown address family: %hhd "
+                           "size: %hd\n",
+                           family,
+                           size);
+#endif
                     remaining -= size;
                     buf += size;
                 }

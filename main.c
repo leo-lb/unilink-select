@@ -329,19 +329,22 @@ net_cb_command_received(int event, void* event_data, void** p)
                     remaining -= 4;
 
 #ifdef DEBUG
-                  int err;
+                    int err;
                     if ((err = getnameinfo((struct sockaddr*)sin,
-                                    sizeof *sin,
-                                    host,
-                                    sizeof host,
-                                    serv,
-                                    sizeof serv,
-                                    NI_NUMERICHOST | NI_NUMERICSERV)) == 0)
+                                           sizeof *sin,
+                                           host,
+                                           sizeof host,
+                                           serv,
+                                           sizeof serv,
+                                           NI_NUMERICHOST | NI_NUMERICSERV)) ==
+                        0)
                       printf(
                         "decoded address: %s - decoded port: %s\n", host, serv);
-                  else
-                    printf("%s %hd\n", gai_strerror (err), ((struct sockaddr *)sin)->sa_family);
-                  #endif
+                    else
+                      printf("%s %hd\n",
+                             gai_strerror(err),
+                             ((struct sockaddr*)sin)->sa_family);
+#endif
                     break;
                   case FAMILY_IPV6:
                     /* port */
@@ -386,6 +389,13 @@ net_cb_command_received(int event, void* event_data, void** p)
 
               /* TODO: Decide what to do with peer addresses */
             }
+          }
+
+          if (mem_shrink_buf_head(
+                &received->tcp_conn->receive_buf,
+                (size_t)buf - (size_t)received->tcp_conn->receive_buf.p) !=
+              MEM_SHRINK_BUF_HEAD_OK) {
+            goto close_fd;
           }
           break;
       }

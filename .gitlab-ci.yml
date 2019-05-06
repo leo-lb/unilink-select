@@ -9,6 +9,6 @@ build:
   artifacts:
     paths:
       - unilink-select
-    cache:
-      paths:
-        - "*.o"
+  cache:
+    paths:
+      - "*.o"

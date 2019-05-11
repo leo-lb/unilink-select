@@ -55,4 +55,14 @@ When a peer receives a request of type ping, it must send a response back with i
 
 ### Announce
 
-TODO
+_Address block_
+
+| Family | Size    | Address data      |
+| :----: | :-----: | :---------------: |
+| 4 bits | 12 bits | 8 bits x **Size** |
+
+--
+
+| Role   | Address block count | Address blocks                            | Public key type | Public key size | Public key                   | Signature size | Signature                   | Master signature type | Master signature size | Master signature                   |
+| :----: | :-----------------: | :---------------------------------------: | :-------------: | :-------------: | :--------------------------: | :------------: | :-------------------------: | :-------------------: | :-------------------: | :--------------------------------: |
+| 8 bits | 8 bits              | _Address block_ x **Address block count** | 4 bits          | 12 bits         | 8 bits x **Public key size** | 16 bits        | 8 bits x **Signature size** | 8 bits                | 16 bits               | 8 bits x **Master signature size** |

@@ -4,9 +4,9 @@
 
 The header is sent before every request or response
 
-| flags  |   tag   |  type   | version |  size   |
-|--------|---------|---------|---------|---------|
-| 8 bits | 32 bits | 16 bits | 16 bits | 32 bits |
+|flags |tag    |type   |version|size   |
+|:----:|:----: |:----: |:----: |:----: |
+|8 bits|32 bits|16 bits|16 bits|32 bits|
 
 flags bits:
 - 0

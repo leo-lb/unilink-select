@@ -1,39 +1,58 @@
 # Protocol
 
+Draft for the first version of the **unilink** protocol.
+
 ## Header
 
-The header is sent before every request or response
+Always sent before any command.
 
-|flags |tag    |type   |version|size   |
-|:----:|:----: |:----: |:----: |:----: |
-|8 bits|32 bits|16 bits|16 bits|32 bits|
+| Flags  | Tag     | Type    | Version | Size    |
+| :----: | :-----: | :-----: | :-----: | :-----: |
+| 8 bits | 32 bits | 16 bits | 16 bits | 32 bits |
 
-flags bits:
-- 0
+### Flags
 
-If this bit's value is 1 then the command is a request, otherwise it's a response.
-- 1
+| Bit offset | Meaning if activated | Meaning if deactivated |
+| :--------: | :------------------: | :--------------------: |
+| 0          | Command is a request | Command is a response  |
+| 1 to 7     | Reserved             | Reserved               |
 
-Unused
-- 2
+### Tag
 
-Unused
-- 3
+Unsigned integer in network byte order.
 
-Unused
-- 4
+When a peer A sends a command to a peer B, peer A sets the tag to an arbitrary value, when peer B sends a response to that request to peer A, it sets the tag to the same value, peer A will not send a request to peer B for which it has not received a response for from peer B with the same tag.
 
-Unused
-- 5
+All requests sent that have not received a response must have a unique tag value.
 
-Unused
-- 6
+This behavior allows to pipeline multiple requests in the same TCP connection and receive responses for these requests in any order.
 
-Unused
-- 7
+### Type
 
-Unused
+Unsigned integer in network byte order, it describes the type of the command.
 
-## Ping
+| Value      | Command type |
+| :--------: | :----------: |
+| 0          | Ping         |
+| 1          | Announce     |
+| 2 to 65535 | Reserved     |
 
+### Version
 
+Unsigned integer in network byte order, it describes the version of the command to allow for backwards compatibility.
+
+### Size
+
+Unsigned integer in network byte order, it describes the amount of octets following the header that are included in the command.
+
+## Commands
+
+### Ping
+
+Command most commonly used to test a peer for protocol conformance and availability.
+
+When a peer receives a request of type ping, it must send a response back with identical header but the flags value which must have the bit at offset 0 deactivated to indicate a response, and *size* identical octets following it or none if size is zero.
+
+### Announce
+
+TODO

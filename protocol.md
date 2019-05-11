@@ -61,7 +61,7 @@ _Address block_
 | :----: | :-----: | :---------------: |
 | 4 bits | 12 bits | 8 bits x **Size** |
 
---
+---
 
 | Role   | Address block count | Address blocks                            | Public key type | Public key size | Public key                   | Signature size | Signature                   | Master signature type | Master signature size | Master signature                   |
 | :----: | :-----------------: | :---------------------------------------: | :-------------: | :-------------: | :--------------------------: | :------------: | :-------------------------: | :-------------------: | :-------------------: | :--------------------------------: |
